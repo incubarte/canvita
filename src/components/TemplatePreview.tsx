@@ -19,8 +19,8 @@ export const TemplatePreview = ({ template, clientColorPalette }: TemplatePrevie
     canvas.getObjects().forEach(obj => {
       // Check if object has a color variable
       const objColorVariable = (obj as any).colorVariable;
-      if (objColorVariable && colorPalette[objColorVariable]) {
-        const newColor = colorPalette[objColorVariable];
+      if (objColorVariable && colorPalette[objColorVariable as keyof typeof colorPalette]) {
+        const newColor = colorPalette[objColorVariable as keyof typeof colorPalette];
         obj.set('fill', newColor);
       }
     });

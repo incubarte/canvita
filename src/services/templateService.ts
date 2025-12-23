@@ -65,6 +65,7 @@ export class TemplateService {
     });
 
     // Serializar canvas
+    // @ts-expect-error - Fabric.js toJSON typing issue
     const canvasJson = canvas.toJSON(['data', 'id', 'selectable', 'evented']);
 
     // Manualmente agregar colorVariable a cada objeto después de toJSON

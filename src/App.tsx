@@ -17,7 +17,7 @@ import { ProjectService } from './services/projectService';
 import { TemplateService } from './services/templateService';
 import { PaletteService } from './services/paletteService';
 import { useCanvasHistory } from './hooks/useCanvasHistory';
-import type { CategorizedTemplate, TemplateElement, BusinessCategory, TemplateStyle } from './types/template';
+import type { CategorizedTemplate, TemplateElement } from './types/template';
 import type { Project, SavedPalette, ColorPalette } from './types/user';
 
 function EditorView() {
@@ -96,7 +96,7 @@ function EditorView() {
     setCanvasBackgroundColorVariable(colorVariable);
 
     if (colorVariable && isAdmin && activePalette) {
-      const color = activePalette[colorVariable as keyof ColorPalette];
+      const color = activePalette[colorVariable as keyof typeof activePalette];
       if (color) {
         canvas.backgroundColor = color;
         canvas.requestRenderAll();
@@ -118,16 +118,17 @@ function EditorView() {
       // Aplicar la nueva paleta al canvas actual
       if (canvas) {
         // Actualizar objetos con variables de color
-        canvas.getObjects().forEach(obj => {
-          const colorVariable = (obj as any).colorVariable;
-          if (colorVariable && palette.palette[colorVariable]) {
-            obj.set('fill', palette.palette[colorVariable]);
+        canvas.getObjects().forEach(_obj => {
+          const obj = _obj as any;
+          const colorVariable = obj.colorVariable;
+          if (colorVariable && palette.palette[colorVariable as keyof typeof palette.palette]) {
+            obj.set('fill', palette.palette[colorVariable as keyof typeof palette.palette]);
           }
         });
 
         // Actualizar color de fondo si tiene variable asignada
         if (canvasBackgroundColorVariable) {
-          const bgColor = palette.palette[canvasBackgroundColorVariable as keyof ColorPalette];
+          const bgColor = palette.palette[canvasBackgroundColorVariable as keyof typeof palette.palette];
           if (bgColor) {
             canvas.backgroundColor = bgColor;
             setCanvasBackgroundColor(bgColor);
@@ -143,7 +144,7 @@ function EditorView() {
   useEffect(() => {
     if (!canvas) return;
 
-    let modificationTimeout: NodeJS.Timeout | null = null;
+    let modificationTimeout: ReturnType<typeof setTimeout> | null = null;
     let lastRemoveTime = 0;
     let lastAddTime = 0;
 

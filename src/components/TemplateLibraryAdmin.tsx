@@ -72,17 +72,7 @@ export const TemplateLibraryAdmin = ({ onCreateNew, onEditTemplate, onLogout }: 
     }
   };
 
-  const handleSavePalette = (palette: ColorPalette) => {
-    if (!user) return;
-
-    const name = prompt('Nombre de la paleta:');
-    if (!name) return;
-
-    const newPalettes = PaletteService.savePalette(user, name, palette);
-    updateUser({ savedPalettes: newPalettes });
-    setSavedPalettes(newPalettes);
-    alert('¡Paleta guardada exitosamente!');
-  };
+  // Removed unused function
 
   const handleDeletePalette = (paletteId: string) => {
     if (!user) return;
@@ -475,8 +465,8 @@ export const TemplateLibraryAdmin = ({ onCreateNew, onEditTemplate, onLogout }: 
                 </h4>
                 {activePalette && (
                   <ColorPalettePanel
-                    colorPalette={editingPalette || activePalette}
-                    onColorChange={handleUpdateActivePalette}
+                    initialPalette={editingPalette || activePalette}
+                    onSave={handleUpdateActivePalette}
                   />
                 )}
 
