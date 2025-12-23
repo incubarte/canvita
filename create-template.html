@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Template - Canvita</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .info {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+            border: 2px solid #4CAF50;
+        }
+        .error {
+            background: rgba(244, 67, 54, 0.3);
+            border: 2px solid #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Crear Template: Promoción Restaurante</h1>
+
+        <div class="info">
+            <h3>Este template incluye:</h3>
+            <ul>
+                <li>Fondo con color variable (Principal 1)</li>
+                <li>Título "Visitanos Hoy!" (Secundario 3 - blanco)</li>
+                <li>Rectángulos decorativos (Principal 2 - azul)</li>
+                <li>Círculos decorativos (Secundario 1 y 2)</li>
+                <li>Placeholder para imagen de comida</li>
+                <li>Texto de dirección (Secundario 1 - dorado)</li>
+                <li>Llamada a la acción (Secundario 3 - blanco)</li>
+            </ul>
+            <p><strong>Paleta de colores:</strong></p>
+            <ul>
+                <li>Principal 1: #FF6B35 (Naranja vibrante)</li>
+                <li>Principal 2: #004E89 (Azul oscuro)</li>
+                <li>Secundario 1: #F7931E (Dorado)</li>
+                <li>Secundario 2: #C1121F (Rojo)</li>
+                <li>Secundario 3: #FFFFFF (Blanco)</li>
+            </ul>
+        </div>
+
+        <button onclick="createTemplate()">Crear Template</button>
+        <button onclick="location.href='http://localhost:5175'">Volver a la App</button>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function createTemplate() {
+            try {
+                const demoTheme = {
+                    principal1: '#FF6B35',
+                    principal2: '#004E89',
+                    secundario1: '#F7931E',
+                    secundario2: '#C1121F',
+                    secundario3: '#FFFFFF'
+                };
+
+                const templateData = {
+                    id: 'custom-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                    name: 'Promocion Restaurante',
+                    description: 'Template para historias de Instagram - promociones de comida',
+                    businessCategory: 'comida',
+                    style: 'historia',
+                    category: 'instagram-story',
+                    isActive: true,
+                    createdBy: 'admin',
+                    createdAt: new Date().toISOString(),
+                    demoTheme: demoTheme,
+                    canvas: {
+                        width: 1080,
+                        height: 1920,
+                        backgroundColor: '#FF6B35'
+                    },
+                    elements: [],
+                    canvasJson: {
+                        version: '6.0.0',
+                        objects: [
+                            {
+                                type: 'Rect',
+                                left: 540,
+                                top: 960,
+                                width: 1080,
+                                height: 1920,
+                                fill: '#FF6B35',
+                                colorVariable: 'principal1',
+                                selectable: false,
+                                evented: false
+                            },
+                            {
+                                type: 'Rect',
+                                left: 540,
+                                top: 350,
+                                width: 900,
+                                height: 200,
+                                fill: '#004E89',
+                                colorVariable: 'principal2',
+                                rx: 20,
+                                ry: 20
+                            },
+                            {
+                                type: 'IText',
+                                left: 540,
+                                top: 350,
+                                text: 'Visitanos Hoy!',
+                                fontSize: 80,
+                                fontFamily: 'Arial',
+                                fontWeight: 'bold',
+                                fill: '#FFFFFF',
+                                colorVariable: 'secundario3',
+                                textAlign: 'center',
+                                originX: 'center',
+                                originY: 'center'
+                            },
+                            {
+                                type: 'Circle',
+                                left: 150,
+                                top: 650,
+                                radius: 100,
+                                fill: '#F7931E',
+                                colorVariable: 'secundario1'
+                            },
+                            {
+                                type: 'Circle',
+                                left: 930,
+                                top: 650,
+                                radius: 100,
+                                fill: '#C1121F',
+                                colorVariable: 'secundario2'
+                            },
+                            {
+                                type: 'Rect',
+                                left: 540,
+                                top: 950,
+                                width: 700,
+                                height: 700,
+                                fill: '#FFFFFF',
+                                stroke: '#004E89',
+                                strokeWidth: 8,
+                                rx: 30,
+                                ry: 30,
+                                opacity: 0.9
+                            },
+                            {
+                                type: 'IText',
+                                left: 540,
+                                top: 950,
+                                text: 'Imagen de\ntu platillo',
+                                fontSize: 60,
+                                fontFamily: 'Arial',
+                                fill: '#004E89',
+                                colorVariable: 'principal2',
+                                textAlign: 'center',
+                                originX: 'center',
+                                originY: 'center'
+                            },
+                            {
+                                type: 'Rect',
+                                left: 540,
+                                top: 1550,
+                                width: 900,
+                                height: 250,
+                                fill: '#004E89',
+                                colorVariable: 'principal2',
+                                rx: 20,
+                                ry: 20
+                            },
+                            {
+                                type: 'IText',
+                                left: 540,
+                                top: 1550,
+                                text: 'Av. Corrientes 1234\nBuenos Aires',
+                                fontSize: 50,
+                                fontFamily: 'Arial',
+                                fill: '#F7931E',
+                                colorVariable: 'secundario1',
+                                textAlign: 'center',
+                                originX: 'center',
+                                originY: 'center'
+                            },
+                            {
+                                type: 'IText',
+                                left: 540,
+                                top: 1780,
+                                text: 'Te esperamos!',
+                                fontSize: 45,
+                                fontFamily: 'Arial',
+                                fontStyle: 'italic',
+                                fill: '#FFFFFF',
+                                colorVariable: 'secundario3',
+                                textAlign: 'center',
+                                originX: 'center',
+                                originY: 'center'
+                            }
+                        ]
+                    },
+                    thumbnail: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/wAARCAAKAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k='
+                };
+
+                const existingTemplates = JSON.parse(localStorage.getItem('canvita_custom_templates') || '[]');
+                existingTemplates.push(templateData);
+                localStorage.setItem('canvita_custom_templates', JSON.stringify(existingTemplates));
+
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'success';
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = '<h3>✓ Template creado exitosamente!</h3>' +
+                    '<p>Objetos totales: ' + templateData.canvasJson.objects.length + '</p>' +
+                    '<p>Objetos con colorVariable: ' + templateData.canvasJson.objects.filter(o => o.colorVariable).length + '</p>' +
+                    '<p>Redirigiendo a la aplicacion...</p>';
+
+                setTimeout(() => {
+                    window.location.href = 'http://localhost:5175';
+                }, 2000);
+
+            } catch (error) {
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'error';
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = '<h3>✗ Error al crear template</h3>' +
+                    '<p>' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>
