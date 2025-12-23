@@ -29,6 +29,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Crear usuario admin por defecto si no existe
+    const usersJson = localStorage.getItem('users') || '[]';
+    const users = JSON.parse(usersJson);
+
+    const adminExists = users.some((u: any) => u.email === 'admin@canvita.com');
+
+    if (!adminExists) {
+      const adminUser = {
+        id: 'admin-default-id',
+        email: 'admin@canvita.com',
+        name: 'Administrador',
+        role: 'admin',
+        createdAt: new Date().toISOString(),
+        password: 'admin123',
+      };
+
+      users.push(adminUser);
+      localStorage.setItem('users', JSON.stringify(users));
+      console.log('✅ Usuario admin creado: admin@canvita.com / admin123');
+    }
+
     // Cargar usuario desde localStorage al iniciar
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {

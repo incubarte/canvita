@@ -1,4 +1,3 @@
-// @ts-nocheck - Fabric.js has complex typing issues
 import { useState, useEffect } from 'react';
 import { Canvas, FabricObject } from 'fabric';
 
@@ -62,7 +61,7 @@ export const LayersPanel = ({ canvas, onSelectElement }: LayersPanelProps) => {
     if (!canvas) return;
     canvas.setActiveObject(obj);
     canvas.requestRenderAll();
-    setSelectedId(obj.id || null);
+    setSelectedId((obj as any).id || null);
     onSelectElement?.(obj);
   };
 
@@ -148,12 +147,12 @@ export const LayersPanel = ({ canvas, onSelectElement }: LayersPanelProps) => {
       ) : (
         <div className="space-y-1">
           {objects.map((obj, index) => {
-            const isSelected = selectedId && obj.id === selectedId;
+            const isSelected = selectedId && (obj as any).id === selectedId;
             const isEditable = obj.selectable !== false;
 
             return (
               <button
-                key={obj.id || `layer-${index}`}
+                key={(obj as any).id || `layer-${index}`}
                 onClick={() => isEditable && handleSelectLayer(obj)}
                 disabled={!isEditable}
                 className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 ${

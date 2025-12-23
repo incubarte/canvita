@@ -1,6 +1,5 @@
-// @ts-nocheck - Fabric.js has complex typing issues
 import { useEffect, useRef, useState } from 'react';
-import { Canvas, FabricImage, IText, Rect, Circle, FabricObject, Control } from 'fabric';
+import { Canvas, FabricImage, IText, Rect, Circle, FabricObject, Control, type TPointerEvent, type Transform } from 'fabric';
 import type { Template, TemplateElement, TextElement, ImageElement } from '../types/template';
 import type { ColorPalette } from '../types/user';
 
@@ -16,7 +15,6 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedElement, setSelectedElement] = useState<TemplateElement | null>(null);
 
   const SCALE = 0.35;
 
@@ -130,18 +128,20 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
     fabricCanvasRef.current = canvas;
 
     // Función para eliminar objeto
-    const deleteObject = (eventData: MouseEvent, transform: any) => {
+    const deleteObject = (_eventData: TPointerEvent, transform: Transform) => {
       const target = transform.target;
       const canvas = target.canvas;
+      if (!canvas) return false;
       canvas.remove(target);
       canvas.requestRenderAll();
       return true;
     };
 
     // Función para mover adelante
-    const bringForward = (eventData: MouseEvent, transform: any) => {
+    const bringForward = (_eventData: TPointerEvent, transform: Transform) => {
       const target = transform.target;
       const canvas = target.canvas;
+      if (!canvas) return false;
 
       // Ejecutar después del ciclo de eventos actual
       setTimeout(() => {
@@ -151,8 +151,7 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
         // Solo mover si no está al final
         if (currentIndex >= 0 && currentIndex < objects.length - 1) {
           // Obtener todos los objetos excepto el actual
-          // @ts-expect-error - Fabric.js typing issue
-          const filtered = objects.filter(obj => obj !== target);
+          const filtered = objects.filter((obj: FabricObject) => obj !== target);
           // Insertar en la nueva posición
           filtered.splice(currentIndex + 1, 0, target);
 
@@ -168,9 +167,10 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
     };
 
     // Función para mover atrás
-    const sendBackward = (eventData: MouseEvent, transform: any) => {
+    const sendBackward = (_eventData: TPointerEvent, transform: Transform) => {
       const target = transform.target;
       const canvas = target.canvas;
+      if (!canvas) return false;
 
       // Ejecutar después del ciclo de eventos actual
       setTimeout(() => {
@@ -190,8 +190,7 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
         // Solo mover si no está en el mínimo
         if (currentIndex > minIndex) {
           // Obtener todos los objetos excepto el actual
-          // @ts-expect-error - Fabric.js typing issue
-          const filtered = objects.filter(obj => obj !== target);
+          const filtered = objects.filter((obj: FabricObject) => obj !== target);
           // Insertar en la nueva posición
           filtered.splice(currentIndex - 1, 0, target);
 
@@ -316,7 +315,6 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
       cursorStyle: 'pointer',
       mouseUpHandler: deleteObject,
       render: renderDeleteIcon,
-      cornerSize: 24,
     });
 
     const bringForwardControl = new Control({
@@ -327,7 +325,6 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
       cursorStyle: 'pointer',
       mouseUpHandler: bringForward,
       render: renderBringForwardIcon,
-      cornerSize: 24,
     });
 
     const sendBackwardControl = new Control({
@@ -338,7 +335,6 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
       cursorStyle: 'pointer',
       mouseUpHandler: sendBackward,
       render: renderSendBackwardIcon,
-      cornerSize: 24,
     });
 
     // Configurar controles para todos los objetos que se agreguen
@@ -376,7 +372,6 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
         // Crear un elemento genérico basado en el tipo de objeto
         const element = createElementFromObject(activeObject);
         if (element) {
-          setSelectedElement(element);
           onElementSelect?.(element);
         }
       }
@@ -388,14 +383,12 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
         // Crear un elemento genérico basado en el tipo de objeto
         const element = createElementFromObject(activeObject);
         if (element) {
-          setSelectedElement(element);
           onElementSelect?.(element);
         }
       }
     };
 
     const handleSelectionCleared = () => {
-      setSelectedElement(null);
       onElementSelect?.(null);
     };
 

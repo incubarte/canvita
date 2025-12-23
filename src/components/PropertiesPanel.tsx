@@ -1,4 +1,3 @@
-// @ts-nocheck - Fabric.js has complex typing issues
 import { Canvas, FabricImage, IText } from 'fabric';
 import { useState } from 'react';
 import type { TemplateElement, FontFamily } from '../types/template';
@@ -149,7 +148,7 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
       if (currentIndex < objects.length - 1) {
         const obj = activeObject;
         canvas.remove(obj);
-        canvas.insertAt(obj, currentIndex + 1);
+        canvas.insertAt(currentIndex + 1, obj);
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
 
@@ -183,7 +182,7 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
       if (currentIndex > minIndex) {
         const obj = activeObject;
         canvas.remove(obj);
-        canvas.insertAt(obj, currentIndex - 1);
+        canvas.insertAt(currentIndex - 1, obj);
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
 
@@ -231,7 +230,7 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
 
       const obj = activeObject;
       canvas.remove(obj);
-      canvas.insertAt(obj, minIndex);
+      canvas.insertAt(minIndex, obj);
       canvas.setActiveObject(obj);
       canvas.requestRenderAll();
 
