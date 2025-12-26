@@ -9,9 +9,10 @@ interface CanvasEditorProps {
   onCanvasReady?: (canvas: Canvas) => void;
   savedCanvasData?: string; // JSON del canvas guardado
   clientColorPalette?: ColorPalette; // Paleta de colores del cliente para reemplazar variables
+  isAdmin?: boolean; // Si es admin, tiene control total; si no, solo puede editar elementos customizables
 }
 
-export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCanvasData, clientColorPalette }: CanvasEditorProps) => {
+export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCanvasData, clientColorPalette, isAdmin = false }: CanvasEditorProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,6 +51,74 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
       console.log('   👉 Crea un nuevo template y asigna colores variables para probar esta funcionalidad');
     }
     console.log(`🎨 Total de colores reemplazados: ${replacedCount}`);
+    canvas.requestRenderAll();
+  };
+
+  // Función para configurar restricciones de usuario no-admin
+  const applyUserRestrictions = (canvas: Canvas) => {
+    if (isAdmin) {
+      console.log('👑 Usuario admin - sin restricciones');
+      return; // Admin tiene acceso total
+    }
+
+    console.log('👤 Usuario no-admin - aplicando restricciones...');
+    const objects = canvas.getObjects();
+    let customizableCount = 0;
+    let lockedCount = 0;
+
+    objects.forEach((obj, index) => {
+      const isCustomizable = (obj as any).isCustomizable === true;
+      const allowedProperties: string[] = (obj as any).allowedProperties || [];
+      console.log(`  Objeto ${index}: type=${obj.type}, isCustomizable=${isCustomizable}, allowedProperties=`, allowedProperties);
+
+      if (!isCustomizable) {
+        // Hacer el objeto no seleccionable y no interactivo
+        obj.set({
+          selectable: false,
+          evented: false,
+        });
+        lockedCount++;
+      } else {
+        // El objeto es customizable, pero restringir según allowedProperties
+        const canMove = allowedProperties.includes('position');
+        const canResize = allowedProperties.includes('size');
+        const canEditText = allowedProperties.includes('text');
+
+        // Configuración base para todos los elementos customizables
+        obj.set({
+          selectable: true,
+          evented: true,
+          // Deshabilitar movimiento si no está en allowedProperties
+          lockMovementX: !canMove,
+          lockMovementY: !canMove,
+          // Deshabilitar redimensionamiento si no está en allowedProperties
+          lockScalingX: !canResize,
+          lockScalingY: !canResize,
+          // Siempre deshabilitar rotación para usuarios
+          lockRotation: true,
+          // Deshabilitar skewing (inclinación)
+          lockSkewingX: true,
+          lockSkewingY: true,
+          // Mostrar controles solo si puede redimensionar
+          hasControls: canResize,
+          // Siempre mostrar bordes cuando está seleccionado (para feedback visual)
+          hasBorders: true,
+        });
+
+        // Para textos, configurar si se puede editar haciendo doble clic
+        if (obj.type === 'i-text') {
+          (obj as IText).set({
+            editable: canEditText, // Solo editable si 'text' está en allowedProperties
+          });
+        }
+
+        customizableCount++;
+        console.log(`    ✓ Restricciones aplicadas: move=${canMove}, resize=${canResize}, editText=${canEditText}`);
+      }
+    });
+
+    console.log(`🔒 Elementos bloqueados: ${lockedCount}`);
+    console.log(`🎨 Elementos customizables: ${customizableCount}`);
     canvas.requestRenderAll();
   };
 
@@ -342,24 +411,30 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
     canvas.add = function (...objects: FabricObject[]) {
       objects.forEach((obj) => {
         if (obj.selectable !== false) {
-          obj.controls = {
-            ...obj.controls,
-            deleteControl: deleteControl,
-            bringForwardControl: bringForwardControl,
-            sendBackwardControl: sendBackwardControl,
-          };
+          // Solo agregar controles de eliminación y z-index si es admin
+          if (isAdmin) {
+            obj.controls = {
+              ...obj.controls,
+              deleteControl: deleteControl,
+              bringForwardControl: bringForwardControl,
+              sendBackwardControl: sendBackwardControl,
+            };
+          }
         }
       });
       return originalAdd(...objects);
     };
 
-    // Agregar listener para la tecla Delete
+    // Agregar listener para la tecla Delete (solo admin)
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        const activeObject = canvas.getActiveObject();
-        if (activeObject && activeObject.selectable !== false) {
-          canvas.remove(activeObject);
-          canvas.requestRenderAll();
+        // Solo permitir eliminación si es admin
+        if (isAdmin) {
+          const activeObject = canvas.getActiveObject();
+          if (activeObject && activeObject.selectable !== false) {
+            canvas.remove(activeObject);
+            canvas.requestRenderAll();
+          }
         }
       }
     };
@@ -418,6 +493,9 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
             console.log('⚠️ No hay clientColorPalette disponible');
           }
 
+          // Aplicar restricciones para usuarios no-admin
+          applyUserRestrictions(canvas);
+
           // Forzar render después de cargar todo
           canvas.requestRenderAll();
 
@@ -428,6 +506,7 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
           console.error('Error loading saved canvas:', error);
           // Si falla, renderizar template por defecto
           renderTemplate(canvas, template).then(() => {
+            applyUserRestrictions(canvas);
             if (!isDisposed && onCanvasReady) {
               onCanvasReady(canvas);
             }
@@ -437,6 +516,7 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
         console.error('Error parsing saved canvas:', error);
         // Si falla, renderizar template por defecto
         renderTemplate(canvas, template).then(() => {
+          applyUserRestrictions(canvas);
           if (!isDisposed && onCanvasReady) {
             onCanvasReady(canvas);
           }
@@ -444,6 +524,7 @@ export const CanvasEditor = ({ template, onElementSelect, onCanvasReady, savedCa
       }
     } else {
       renderTemplate(canvas, template).then(() => {
+        applyUserRestrictions(canvas);
         if (!isDisposed && onCanvasReady) {
           onCanvasReady(canvas);
         }

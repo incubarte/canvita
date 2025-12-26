@@ -1,6 +1,6 @@
 import { Canvas, FabricImage, IText } from 'fabric';
 import { useState } from 'react';
-import type { TemplateElement, FontFamily } from '../types/template';
+import type { TemplateElement, FontFamily, CustomizableProperty } from '../types/template';
 import type { ColorPalette, ColorVariableName } from '../types/user';
 
 interface PropertiesPanelProps {
@@ -8,6 +8,7 @@ interface PropertiesPanelProps {
   canvas: Canvas | null;
   onUpdate?: () => void;
   demoTheme?: ColorPalette;
+  isAdmin?: boolean;
 }
 
 const fontFamilies: FontFamily[] = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Courier New', 'Verdana'];
@@ -24,7 +25,7 @@ interface UnsplashImage {
   };
 }
 
-export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }: PropertiesPanelProps) => {
+export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme, isAdmin }: PropertiesPanelProps) => {
   const [unsplashImages, setUnsplashImages] = useState<UnsplashImage[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -268,6 +269,90 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
     }
   };
 
+  const handleToggleCustomizable = () => {
+    if (!canvas) return;
+    const activeObject = canvas.getActiveObject();
+    if (activeObject) {
+      const currentCustomizable = (activeObject as any).isCustomizable === true;
+      (activeObject as any).isCustomizable = !currentCustomizable;
+
+      // Si se desactiva customizable, limpiar las propiedades permitidas
+      if (!currentCustomizable) {
+        (activeObject as any).customizableName = '';
+        (activeObject as any).allowedProperties = [];
+      }
+
+      console.log('🎨 Elemento customizable:', !currentCustomizable);
+      onUpdate?.();
+    }
+  };
+
+  const handleCustomizableNameChange = (name: string) => {
+    if (!canvas) return;
+    const activeObject = canvas.getActiveObject();
+    if (activeObject) {
+      (activeObject as any).customizableName = name;
+      onUpdate?.();
+    }
+  };
+
+  const handleToggleProperty = (property: CustomizableProperty) => {
+    if (!canvas) return;
+    const activeObject = canvas.getActiveObject();
+    if (activeObject) {
+      const currentProperties = (activeObject as any).allowedProperties || [];
+      const index = currentProperties.indexOf(property);
+
+      if (index > -1) {
+        // Remover propiedad
+        currentProperties.splice(index, 1);
+      } else {
+        // Agregar propiedad
+        currentProperties.push(property);
+      }
+
+      (activeObject as any).allowedProperties = [...currentProperties];
+      console.log('🔧 PropertiesPanel - Propiedades customizables actualizadas:', {
+        elementType: activeObject.type,
+        property: property,
+        action: index > -1 ? 'removed' : 'added',
+        newAllowedProperties: [...currentProperties]
+      });
+      onUpdate?.();
+    }
+  };
+
+  // Determinar qué propiedades están disponibles según el tipo de elemento
+  const getAvailableProperties = (objectType: string | undefined): Array<{property: CustomizableProperty, label: string}> => {
+    const common = [
+      { property: 'position' as CustomizableProperty, label: 'Posición' },
+      { property: 'color' as CustomizableProperty, label: 'Color' },
+    ];
+
+    if (objectType === 'i-text' || objectType === 'text') {
+      return [
+        ...common,
+        { property: 'text' as CustomizableProperty, label: 'Texto' },
+        { property: 'size' as CustomizableProperty, label: 'Tamaño de Fuente' },
+        { property: 'fontFamily' as CustomizableProperty, label: 'Tipo de Letra' },
+        { property: 'fontWeight' as CustomizableProperty, label: 'Negrita' },
+        { property: 'fontStyle' as CustomizableProperty, label: 'Itálica' },
+      ];
+    } else if (objectType === 'image') {
+      return [
+        ...common,
+        { property: 'image' as CustomizableProperty, label: 'Cambiar Imagen' },
+        { property: 'size' as CustomizableProperty, label: 'Tamaño' },
+      ];
+    } else {
+      // Shapes (rect, circle)
+      return [
+        ...common,
+        { property: 'size' as CustomizableProperty, label: 'Tamaño' },
+      ];
+    }
+  };
+
   const applyColorVariable = (colorVariable: ColorVariableName) => {
     if (!demoTheme) return;
     const color = demoTheme[colorVariable];
@@ -397,6 +482,92 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
 
   return (
     <div className="h-full overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+      {/* Panel de Customización (solo admin) */}
+      {isAdmin && (
+        <div className="mb-4 p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl space-y-3">
+          {/* Toggle principal de customizable */}
+          <button
+            onClick={handleToggleCustomizable}
+            className="w-full flex items-center justify-between transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+              </svg>
+              <div className="text-left">
+                <div className="text-sm font-medium text-purple-300">Customizable</div>
+                <div className="text-xs text-purple-400/60">
+                  {(activeObject as any)?.isCustomizable
+                    ? 'Aparece en customización'
+                    : 'No customizable'}
+                </div>
+              </div>
+            </div>
+            {/* Toggle Switch */}
+            <div className={`relative w-11 h-6 rounded-full transition-colors ${
+              (activeObject as any)?.isCustomizable
+                ? 'bg-purple-600'
+                : 'bg-white/20'
+            }`}>
+              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                (activeObject as any)?.isCustomizable
+                  ? 'translate-x-5'
+                  : 'translate-x-0'
+              }`}></div>
+            </div>
+          </button>
+
+          {/* Configuración de customización (solo si está activo) */}
+          {(activeObject as any)?.isCustomizable && (
+            <div className="space-y-3 pt-2 border-t border-purple-500/20">
+              {/* Nombre del elemento */}
+              <div>
+                <label className="block text-xs font-medium text-purple-300/80 mb-2">
+                  Nombre para el Usuario
+                </label>
+                <input
+                  type="text"
+                  value={(activeObject as any)?.customizableName || ''}
+                  onChange={(e) => handleCustomizableNameChange(e.target.value)}
+                  placeholder="Ej: Título Principal, Logo, etc."
+                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                />
+              </div>
+
+              {/* Propiedades modificables */}
+              <div>
+                <label className="block text-xs font-medium text-purple-300/80 mb-2">
+                  Propiedades Modificables
+                </label>
+                <div className="space-y-1.5">
+                  {getAvailableProperties(activeObject?.type).map(({ property, label }) => {
+                    const isAllowed = ((activeObject as any)?.allowedProperties || []).includes(property);
+                    return (
+                      <button
+                        key={property}
+                        onClick={() => handleToggleProperty(property)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between ${
+                          isAllowed
+                            ? 'bg-purple-600/30 border border-purple-400/50 text-purple-200'
+                            : 'bg-white/5 border border-white/10 text-purple-300/60 hover:bg-white/10'
+                        }`}
+                      >
+                        <span>{label}</span>
+                        {isAllowed && (
+                          <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Controles generales - siempre visibles cuando hay elemento seleccionado */}
       {selectedElement.editable && (
         <div className="space-y-3 mb-4">
@@ -439,16 +610,6 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
               {demoTheme && (
                 <div className="flex gap-2 mb-3">
                   <button
-                    onClick={() => setColorMode('fixed')}
-                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-all ${
-                      colorMode === 'fixed'
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                        : 'bg-white/5 text-purple-300/60 border border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    Color Fijo
-                  </button>
-                  <button
                     onClick={() => setColorMode('variable')}
                     className={`flex-1 px-3 py-2 text-xs rounded-lg transition-all ${
                       colorMode === 'variable'
@@ -457,6 +618,16 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
                     }`}
                   >
                     Color Variable
+                  </button>
+                  <button
+                    onClick={() => setColorMode('fixed')}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg transition-all ${
+                      colorMode === 'fixed'
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                        : 'bg-white/5 text-purple-300/60 border border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    Color Fijo
                   </button>
                 </div>
               )}
@@ -583,16 +754,6 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
             {demoTheme && (
               <div className="flex gap-2 mb-3">
                 <button
-                  onClick={() => setColorMode('fixed')}
-                  className={`flex-1 px-3 py-2 text-xs rounded-lg transition-all ${
-                    colorMode === 'fixed'
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                      : 'bg-white/5 text-purple-300/60 border border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  Color Fijo
-                </button>
-                <button
                   onClick={() => setColorMode('variable')}
                   className={`flex-1 px-3 py-2 text-xs rounded-lg transition-all ${
                     colorMode === 'variable'
@@ -601,6 +762,16 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme }
                   }`}
                 >
                   Color Variable
+                </button>
+                <button
+                  onClick={() => setColorMode('fixed')}
+                  className={`flex-1 px-3 py-2 text-xs rounded-lg transition-all ${
+                    colorMode === 'fixed'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                      : 'bg-white/5 text-purple-300/60 border border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  Color Fijo
                 </button>
               </div>
             )}

@@ -66,18 +66,30 @@ export class TemplateService {
 
     // Serializar canvas
     // @ts-expect-error - Fabric.js toJSON typing issue
-    const canvasJson = canvas.toJSON(['data', 'id', 'selectable', 'evented']);
+    const canvasJson = canvas.toJSON(['data', 'id', 'selectable', 'evented', 'editable']);
 
-    // Manualmente agregar colorVariable a cada objeto después de toJSON
+    // Manualmente agregar propiedades personalizadas a cada objeto después de toJSON
     // porque Fabric.js no serializa propiedades personalizadas correctamente
     const canvasObjects = canvas.getObjects();
     if (canvasJson.objects) {
       canvasJson.objects.forEach((jsonObj: any, index: number) => {
         const fabricObj = canvasObjects[index];
         const colorVariable = (fabricObj as any).colorVariable;
+        const editable = (fabricObj as any).editable;
+        const isCustomizable = (fabricObj as any).isCustomizable;
+        const customizableName = (fabricObj as any).customizableName;
+        const allowedProperties = (fabricObj as any).allowedProperties;
+
         if (colorVariable) {
           jsonObj.colorVariable = colorVariable;
         }
+        // Guardar editable (por defecto true si no está definido)
+        jsonObj.editable = editable !== undefined ? editable : true;
+
+        // Guardar propiedades de customización
+        jsonObj.isCustomizable = isCustomizable || false;
+        jsonObj.customizableName = customizableName || '';
+        jsonObj.allowedProperties = allowedProperties || [];
       });
     }
 
@@ -87,7 +99,11 @@ export class TemplateService {
       canvasJson.objects.forEach((obj: any, index: number) => {
         console.log(`  Objeto ${index} (${obj.type}):`, {
           fill: obj.fill,
-          colorVariable: obj.colorVariable
+          colorVariable: obj.colorVariable,
+          editable: obj.editable,
+          isCustomizable: obj.isCustomizable,
+          customizableName: obj.customizableName,
+          allowedProperties: obj.allowedProperties
         });
       });
     }

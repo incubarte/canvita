@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { BusinessCategory, TemplateStyle } from '../types/template';
 import type { ColorPalette } from '../types/user';
 
 interface TemplateInfoPanelProps {
   onInfoChange: (info: TemplateInfo) => void;
   initialInfo?: TemplateInfo;
+  activePaletteName?: string;
+  activePaletteColors?: ColorPalette;
 }
 
 export interface TemplateInfo {
@@ -36,7 +38,7 @@ const defaultTheme: ColorPalette = {
   secundario3: '#43e97b',
 };
 
-export const TemplateInfoPanel = ({ onInfoChange, initialInfo }: TemplateInfoPanelProps) => {
+export const TemplateInfoPanel = ({ onInfoChange, initialInfo, activePaletteName, activePaletteColors }: TemplateInfoPanelProps) => {
   const [name, setName] = useState(initialInfo?.name || '');
   const [description, setDescription] = useState(initialInfo?.description || '');
   const [businessCategory, setBusinessCategory] = useState<BusinessCategory | null>(
@@ -44,6 +46,24 @@ export const TemplateInfoPanel = ({ onInfoChange, initialInfo }: TemplateInfoPan
   );
   const [style, setStyle] = useState<TemplateStyle | null>(initialInfo?.style || null);
   const [demoTheme, setDemoTheme] = useState<ColorPalette>(initialInfo?.demoTheme || defaultTheme);
+  const isFirstRender = useRef(true);
+
+  // Sincronizar demoTheme cuando cambie la paleta activa
+  useEffect(() => {
+    if (activePaletteColors && !isFirstRender.current) {
+      console.log('🎨 TemplateInfoPanel: Paleta cambiada', activePaletteColors);
+      setDemoTheme(activePaletteColors);
+      // Notificar el cambio directamente
+      onInfoChange({
+        name,
+        description,
+        businessCategory,
+        style,
+        demoTheme: activePaletteColors,
+      });
+    }
+    isFirstRender.current = false;
+  }, [activePaletteColors ? JSON.stringify(activePaletteColors) : null]);
 
   const handleChange = (updates: Partial<TemplateInfo>) => {
     const newInfo: TemplateInfo = {
@@ -224,10 +244,12 @@ export const TemplateInfoPanel = ({ onInfoChange, initialInfo }: TemplateInfoPan
         {/* Theme Demo */}
         <div>
           <label className="block text-sm font-medium text-purple-300/80 mb-2">
-            Theme de Demostración
+            {activePaletteName ? `Paleta: ${activePaletteName}` : 'Paleta de Colores'}
           </label>
           <p className="text-xs text-purple-300/40 mb-3">
-            Define los colores de ejemplo. Los clientes verán el template con sus propios colores.
+            {activePaletteName
+              ? 'Colores de la paleta seleccionada. Los clientes verán el template con sus propios colores.'
+              : 'Define los colores de ejemplo. Los clientes verán el template con sus propios colores.'}
           </p>
           <div className="space-y-2">
             {(Object.keys(demoTheme) as Array<keyof ColorPalette>).map((key) => {

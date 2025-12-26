@@ -91,3 +91,22 @@ export interface CategorizedTemplate extends Template {
   createdAt?: string;
   demoTheme?: import('../types/user').ColorPalette; // Theme de demostración del admin
 }
+
+// Propiedades customizables para cada tipo de elemento
+export type CustomizableProperty =
+  | 'position'    // Posición (x, y)
+  | 'text'        // Contenido de texto
+  | 'color'       // Color (fill)
+  | 'size'        // Tamaño (fontSize para texto, width/height para otros)
+  | 'image'       // Cambiar imagen
+  | 'fontFamily'  // Estilo de letra
+  | 'fontWeight'  // Negrita
+  | 'fontStyle';  // Itálica
+
+// Configuración de customización para un elemento
+export interface ElementCustomization {
+  elementId: string; // ID del elemento en el canvas
+  elementName: string; // Nombre amigable para mostrar al usuario
+  isCustomizable: boolean; // Si el elemento aparece en la solapa de customización
+  allowedProperties: CustomizableProperty[]; // Propiedades que el usuario puede modificar
+}

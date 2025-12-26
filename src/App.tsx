@@ -12,6 +12,7 @@ import { ElementsPanel } from './components/ElementsPanel';
 import { TemplateInfoPanel, type TemplateInfo } from './components/TemplateInfoPanel';
 import { ProjectSetupPanel } from './components/ProjectSetupPanel';
 import { TemplatePreview } from './components/TemplatePreview';
+import { CustomizationPanel } from './components/CustomizationPanel';
 import { templates } from './data/templates';
 import { ProjectService } from './services/projectService';
 import { TemplateService } from './services/templateService';
@@ -29,8 +30,8 @@ function EditorView() {
   const [selectedTemplate, setSelectedTemplate] = useState<CategorizedTemplate>(templates[0]);
   const [selectedElement, setSelectedElement] = useState<TemplateElement | null>(null);
   const [canvas, setCanvas] = useState<Canvas | null>(null);
-  const [activeTab, setActiveTab] = useState<'insertar' | 'elementos' | 'properties' | 'info' | 'setup'>(
-    isAdmin ? 'info' : 'insertar'
+  const [activeTab, setActiveTab] = useState<'insertar' | 'elementos' | 'properties' | 'info' | 'setup' | 'customization'>(
+    isAdmin ? 'info' : 'customization'
   );
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [projectName, setProjectName] = useState(isAdmin ? 'Nuevo Template' : 'Sin título');
@@ -111,6 +112,7 @@ function EditorView() {
 
     const palette = savedPalettes.find(p => p.id === paletteId);
     if (palette) {
+      console.log('🎨 handleChangePalette:', palette.name, palette.palette);
       setActivePalette(palette.palette);
       setTemplateInfo(prev => ({ ...prev, demoTheme: palette.palette }));
       updateUser({ activePaletteId: paletteId });
@@ -230,7 +232,7 @@ function EditorView() {
     setSelectedTemplate(template);
     setView('editor');
     // Resetear a la tab por defecto según el rol
-    setActiveTab(isAdmin ? 'info' : 'insertar');
+    setActiveTab(isAdmin ? 'info' : 'customization');
     // Limpiar preview
     setPreviewTemplate(null);
   };
@@ -504,7 +506,7 @@ function EditorView() {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
       {/* Header moderno */}
-      <header className="bg-black/20 backdrop-blur-xl border-b border-white/10 flex-shrink-0">
+      <header className="bg-black/20 backdrop-blur-xl border-b border-white/10 flex-shrink-0 relative z-50">
         <div className="px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <button
@@ -620,7 +622,7 @@ function EditorView() {
                 </button>
 
                 {/* Dropdown */}
-                <div className="absolute right-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                <div className="absolute right-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                   <div className="p-2">
                     <div className="space-y-1 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
                       {savedPalettes.map((palette) => (
@@ -693,8 +695,8 @@ function EditorView() {
         <div className="w-72 flex flex-col overflow-hidden bg-black/20 backdrop-blur-xl border-r border-white/10">
           {/* Tabs elegantes */}
           <div className="p-2 border-b border-white/10">
-            <div className={`bg-white/5 rounded-xl p-1 gap-1 ${isAdmin ? 'grid grid-cols-4' : 'grid grid-cols-3'}`}>
-              {isAdmin && (
+            {isAdmin ? (
+              <div className="bg-white/5 rounded-xl p-1 gap-1 grid grid-cols-4">
                 <button
                   onClick={() => setActiveTab('info')}
                   className={`px-2 py-2.5 text-xs font-medium rounded-lg transition-all ${
@@ -705,38 +707,47 @@ function EditorView() {
                 >
                   Info
                 </button>
-              )}
-              <button
-                onClick={() => setActiveTab('insertar')}
-                className={`px-2 py-2.5 text-xs font-medium rounded-lg transition-all ${
-                  activeTab === 'insertar'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                    : 'text-purple-300/60 hover:text-purple-300 hover:bg-white/5'
-                }`}
-              >
-                Insertar
-              </button>
-              <button
-                onClick={() => setActiveTab('elementos')}
-                className={`px-2 py-2.5 text-xs font-medium rounded-lg transition-all ${
-                  activeTab === 'elementos'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                    : 'text-purple-300/60 hover:text-purple-300 hover:bg-white/5'
-                }`}
-              >
-                Elementos
-              </button>
-              <button
-                onClick={() => setActiveTab('properties')}
-                className={`px-2 py-2.5 text-xs font-medium rounded-lg transition-all ${
-                  activeTab === 'properties'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                    : 'text-purple-300/60 hover:text-purple-300 hover:bg-white/5'
-                }`}
-              >
-                Propiedades
-              </button>
-            </div>
+                <button
+                  onClick={() => setActiveTab('insertar')}
+                  className={`px-2 py-2.5 text-xs font-medium rounded-lg transition-all ${
+                    activeTab === 'insertar'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                      : 'text-purple-300/60 hover:text-purple-300 hover:bg-white/5'
+                  }`}
+                >
+                  Insertar
+                </button>
+                <button
+                  onClick={() => setActiveTab('elementos')}
+                  className={`px-2 py-2.5 text-xs font-medium rounded-lg transition-all ${
+                    activeTab === 'elementos'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                      : 'text-purple-300/60 hover:text-purple-300 hover:bg-white/5'
+                  }`}
+                >
+                  Elementos
+                </button>
+                <button
+                  onClick={() => setActiveTab('properties')}
+                  className={`px-2 py-2.5 text-xs font-medium rounded-lg transition-all ${
+                    activeTab === 'properties'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                      : 'text-purple-300/60 hover:text-purple-300 hover:bg-white/5'
+                  }`}
+                >
+                  Propiedades
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white/5 rounded-xl p-1">
+                <button
+                  onClick={() => setActiveTab('customization')}
+                  className="w-full px-4 py-3 text-sm font-medium rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg"
+                >
+                  Customización
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Content area */}
@@ -745,6 +756,13 @@ function EditorView() {
               <TemplateInfoPanel
                 onInfoChange={handleTemplateInfoChange}
                 initialInfo={templateInfo}
+                activePaletteName={activePalette ? savedPalettes.find(p => p.id === user?.activePaletteId)?.name : undefined}
+                activePaletteColors={activePalette || undefined}
+              />
+            ) : activeTab === 'customization' ? (
+              <CustomizationPanel
+                canvas={canvas}
+                userPalette={user?.colorPalette}
               />
             ) : activeTab === 'insertar' ? (
               <ElementsPanel canvas={canvas} />
@@ -760,6 +778,7 @@ function EditorView() {
                 selectedElement={selectedElement}
                 canvas={canvas}
                 demoTheme={isAdmin ? templateInfo.demoTheme : user?.colorPalette}
+                isAdmin={isAdmin}
               />
             )}
           </div>
@@ -775,9 +794,11 @@ function EditorView() {
               ((selectedTemplate as any).canvasJson ? JSON.stringify((selectedTemplate as any).canvasJson) : undefined)
             }
             clientColorPalette={!isAdmin ? user?.colorPalette : undefined}
+            isAdmin={isAdmin}
             onElementSelect={(element) => {
               setSelectedElement(element);
-              if (element) setActiveTab('properties');
+              // Solo cambiar a properties si es admin, usuarios se quedan en customization
+              if (element && isAdmin) setActiveTab('properties');
             }}
             onCanvasReady={(c) => {
               setCanvas(c);
