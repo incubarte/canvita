@@ -294,21 +294,53 @@ function EditorView() {
         return;
       }
 
-      const savedTemplate = await TemplateService.saveTemplate(
-        user.id,
-        templateInfo.name,
-        templateInfo.description,
-        templateInfo.businessCategory,
-        templateInfo.style,
-        canvas,
-        templateInfo.demoTheme,
-        selectedTemplate.id
-      );
+      // Verificar si estamos editando un template propio o creando uno nuevo
+      const isEditingOwnTemplate = selectedTemplate.createdBy === user.id;
+
+      let savedTemplate;
+      if (isEditingOwnTemplate) {
+        // Actualizar el template existente
+        console.log('📝 Actualizando template existente:', selectedTemplate.id);
+        savedTemplate = await TemplateService.updateTemplate(
+          selectedTemplate.id,
+          {
+            name: templateInfo.name,
+            description: templateInfo.description,
+            businessCategory: templateInfo.businessCategory,
+            style: templateInfo.style,
+            demoTheme: templateInfo.demoTheme,
+          },
+          canvas // Pass canvas to update canvas_json, thumbnail, and dimensions
+        );
+
+        if (!savedTemplate) {
+          alert('Error al actualizar el template');
+          return;
+        }
+
+        alert('✅ Template actualizado exitosamente!\n\nLos cambios están disponibles para todos los clientes en:\n' +
+              `• Rubro: ${templateInfo.businessCategory}\n` +
+              `• Estilo: ${templateInfo.style}`);
+      } else {
+        // Crear un nuevo template basado en el seleccionado
+        console.log('📝 Creando nuevo template basado en:', selectedTemplate.id);
+        savedTemplate = await TemplateService.saveTemplate(
+          user.id,
+          templateInfo.name,
+          templateInfo.description,
+          templateInfo.businessCategory,
+          templateInfo.style,
+          canvas,
+          templateInfo.demoTheme,
+          selectedTemplate.id
+        );
+
+        alert('✅ Template creado exitosamente!\n\nLos clientes ya pueden usarlo en:\n' +
+              `• Rubro: ${templateInfo.businessCategory}\n` +
+              `• Estilo: ${templateInfo.style}`);
+      }
 
       setProjectName(savedTemplate.name);
-      alert('✅ Template guardado exitosamente!\n\nLos clientes ya pueden usarlo en:\n' +
-            `• Rubro: ${templateInfo.businessCategory}\n` +
-            `• Estilo: ${templateInfo.style}`);
     } else {
       // Clientes guardan proyectos
       const name = prompt('Nombre del proyecto:', projectName);

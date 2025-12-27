@@ -257,12 +257,21 @@ export const PropertiesPanel = ({ selectedElement, canvas, onUpdate, demoTheme, 
     if (!canvas) return;
     const activeObject = canvas.getActiveObject();
     if (activeObject) {
-      activeObject.set('fill', color);
-      // Store color variable as a custom property directly on the object
-      (activeObject as any).colorVariable = colorVariable || null;
+      // Si es un color variable, solo guardar la referencia, NO el color fijo
+      if (colorVariable) {
+        // Store color variable as a custom property directly on the object
+        (activeObject as any).colorVariable = colorVariable;
+        // Aplicar el color actual del theme solo para preview
+        activeObject.set('fill', color);
+        console.log('🎨 Aplicando color VARIABLE:', colorVariable, '=', color);
+      } else {
+        // Si es color fijo, setear el color y limpiar la variable
+        activeObject.set('fill', color);
+        (activeObject as any).colorVariable = null;
+        console.log('🎨 Aplicando color FIJO:', color);
+      }
 
-      console.log('💾 Guardando colorVariable:', colorVariable, 'en objeto:', activeObject.type);
-      console.log('   colorVariable después de asignar:', (activeObject as any).colorVariable);
+      console.log('💾 colorVariable guardado en objeto:', (activeObject as any).colorVariable);
 
       canvas.requestRenderAll();
       onUpdate?.();

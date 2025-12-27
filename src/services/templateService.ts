@@ -158,7 +158,8 @@ export class TemplateService {
   // Actualizar un template existente
   static async updateTemplate(
     templateId: string,
-    updates: Partial<CategorizedTemplate>
+    updates: Partial<CategorizedTemplate>,
+    canvas?: Canvas
   ): Promise<CategorizedTemplate | null> {
     try {
       const dbUpdates: any = {};
@@ -170,6 +171,64 @@ export class TemplateService {
       if (updates.style) dbUpdates.style = updates.style;
       if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
       if (updates.demoTheme) dbUpdates.demo_theme = updates.demoTheme;
+
+      // Si se proporciona canvas, actualizar también el canvas_json y thumbnail
+      if (canvas) {
+        const SCALE = 0.35;
+        const realWidth = Math.round((canvas.width || 1080) / SCALE);
+        const realHeight = Math.round((canvas.height || 1080) / SCALE);
+
+        // Generar nuevo thumbnail
+        dbUpdates.thumbnail = canvas.toDataURL({
+          format: 'jpeg',
+          quality: 0.5,
+          multiplier: 0.5 / SCALE,
+        });
+
+        // Serializar canvas con propiedades personalizadas
+        // @ts-expect-error - Fabric.js toJSON typing issue
+        const canvasJson = canvas.toJSON(['data', 'id', 'selectable', 'evented', 'editable']);
+
+        // Agregar propiedades personalizadas a cada objeto
+        const canvasObjects = canvas.getObjects();
+        if (canvasJson.objects) {
+          canvasJson.objects.forEach((jsonObj: any, index: number) => {
+            const fabricObj = canvasObjects[index];
+            const colorVariable = (fabricObj as any).colorVariable;
+            const editable = (fabricObj as any).editable;
+            const isCustomizable = (fabricObj as any).isCustomizable;
+            const customizableName = (fabricObj as any).customizableName;
+            const allowedProperties = (fabricObj as any).allowedProperties;
+
+            if (colorVariable) {
+              jsonObj.colorVariable = colorVariable;
+            }
+            jsonObj.editable = editable !== undefined ? editable : true;
+            jsonObj.isCustomizable = isCustomizable || false;
+            jsonObj.customizableName = customizableName || '';
+            jsonObj.allowedProperties = allowedProperties || [];
+          });
+        }
+
+        dbUpdates.canvas_json = canvasJson;
+        dbUpdates.canvas_width = realWidth;
+        dbUpdates.canvas_height = realHeight;
+        dbUpdates.canvas_background_color = canvas.backgroundColor as string || '#ffffff';
+
+        console.log('📝 Actualizando canvas con objetos:');
+        if (canvasJson.objects) {
+          canvasJson.objects.forEach((obj: any, index: number) => {
+            console.log(`  Objeto ${index} (${obj.type}):`, {
+              fill: obj.fill,
+              colorVariable: obj.colorVariable,
+              editable: obj.editable,
+              isCustomizable: obj.isCustomizable,
+              customizableName: obj.customizableName,
+              allowedProperties: obj.allowedProperties
+            });
+          });
+        }
+      }
 
       const { data, error } = await supabase
         .from('templates')
