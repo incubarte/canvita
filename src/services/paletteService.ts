@@ -1,4 +1,5 @@
 import type { User, SavedPalette, ColorPalette } from '../types/user';
+import { supabase, handleSupabaseError } from '../lib/supabase';
 
 export class PaletteService {
   // Paletas predeterminadas para admins
@@ -55,69 +56,171 @@ export class PaletteService {
     ];
   }
 
-  // Obtener las paletas del usuario admin
-  static getUserPalettes(user: User): SavedPalette[] {
-    if (user.role !== 'admin') {
-      return [];
-    }
+  // Obtener las paletas del usuario admin desde Supabase
+  static async getUserPalettes(userId: string): Promise<SavedPalette[]> {
+    try {
+      const { data, error } = await supabase
+        .from('saved_palettes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-    // Si no tiene paletas guardadas, retornar las predeterminadas
-    if (!user.savedPalettes || user.savedPalettes.length === 0) {
+      if (error) throw error;
+
+      // Si no tiene paletas guardadas, retornar las predeterminadas
+      if (!data || data.length === 0) {
+        return this.getDefaultPalettes();
+      }
+
+      return data.map(this.mapDbToPalette);
+    } catch (error) {
+      console.error('Error getting user palettes:', error);
       return this.getDefaultPalettes();
     }
-
-    return user.savedPalettes;
   }
 
-  // Obtener la paleta activa del admin
-  static getActivePalette(user: User): ColorPalette | null {
-    if (user.role !== 'admin') {
-      return user.colorPalette || null;
-    }
+  // Obtener la paleta activa del usuario
+  static async getActivePalette(user: User): Promise<ColorPalette | null> {
+    try {
+      if (user.role !== 'admin') {
+        // Para clientes, usar la paleta del usuario
+        return user.colorPalette || null;
+      }
 
-    const palettes = this.getUserPalettes(user);
+      // Para admins, obtener paletas guardadas
+      const palettes = await this.getUserPalettes(user.id);
 
-    if (!palettes || palettes.length === 0) {
+      if (!palettes || palettes.length === 0) {
+        return null;
+      }
+
+      // Si tiene una paleta activa seleccionada, buscarla
+      if (user.activePaletteId) {
+        const active = palettes.find(p => p.id === user.activePaletteId);
+        if (active) {
+          return active.palette;
+        }
+      }
+
+      // Si no, retornar la primera
+      return palettes[0].palette;
+    } catch (error) {
+      console.error('Error getting active palette:', error);
       return null;
     }
+  }
 
-    // Si tiene una paleta activa seleccionada, buscarla
-    if (user.activePaletteId) {
-      const active = palettes.find(p => p.id === user.activePaletteId);
-      if (active) {
-        return active.palette;
-      }
+  // Guardar una nueva paleta (sobrecarga para mantener compatibilidad)
+  static async savePalette(userOrId: User | string, name: string, palette: ColorPalette): Promise<SavedPalette> {
+    const userId = typeof userOrId === 'string' ? userOrId : userOrId.id;
+    try {
+      const { data, error } = await supabase
+        .from('saved_palettes')
+        .insert({
+          user_id: userId,
+          name,
+          palette,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return this.mapDbToPalette(data);
+    } catch (error) {
+      handleSupabaseError(error, 'savePalette');
     }
-
-    // Si no, retornar la primera
-    return palettes[0].palette;
   }
 
-  // Guardar una nueva paleta
-  static savePalette(user: User, name: string, palette: ColorPalette): SavedPalette[] {
-    const palettes = this.getUserPalettes(user);
+  // Eliminar una paleta (compatible con firma anterior que recibía User)
+  static async deletePalette(userOrPaletteId: User | string, paletteId?: string): Promise<void> {
+    // Si se pasó User y paletteId por separado (firma legacy)
+    const actualPaletteId = paletteId || (typeof userOrPaletteId === 'string' ? userOrPaletteId : '');
+    try {
+      const { error } = await supabase
+        .from('saved_palettes')
+        .delete()
+        .eq('id', actualPaletteId);
 
-    const newPalette: SavedPalette = {
-      id: `palette-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name,
-      palette,
-      createdAt: new Date().toISOString(),
+      if (error) throw error;
+    } catch (error) {
+      handleSupabaseError(error, 'deletePalette');
+    }
+  }
+
+  // Actualizar una paleta existente (compatible con firma anterior)
+  static async updatePalette(userOrPaletteId: User | string, updatesOrPaletteId: Partial<SavedPalette> | string, legacyUpdates?: Partial<SavedPalette>): Promise<SavedPalette> {
+    // Determinar parámetros reales
+    let paletteId: string;
+    let updates: Partial<SavedPalette>;
+
+    if (typeof userOrPaletteId === 'string' && typeof updatesOrPaletteId === 'object') {
+      // Firma nueva: (paletteId, updates)
+      paletteId = userOrPaletteId;
+      updates = updatesOrPaletteId;
+    } else {
+      // Firma legacy: (user, paletteId, updates)
+      paletteId = updatesOrPaletteId as string;
+      updates = legacyUpdates!;
+    }
+    try {
+      const dbUpdates: any = {};
+      if (updates.name) dbUpdates.name = updates.name;
+      if (updates.palette) dbUpdates.palette = updates.palette;
+
+      const { data, error } = await supabase
+        .from('saved_palettes')
+        .update(dbUpdates)
+        .eq('id', paletteId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return this.mapDbToPalette(data);
+    } catch (error) {
+      handleSupabaseError(error, 'updatePalette');
+    }
+  }
+
+  // Actualizar la paleta de un usuario cliente
+  static async updateUserPalette(userId: string, palette: ColorPalette): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ color_palette: palette })
+        .eq('id', userId);
+
+      if (error) throw error;
+    } catch (error) {
+      handleSupabaseError(error, 'updateUserPalette');
+    }
+  }
+
+  // Actualizar la paleta activa de un admin
+  static async setActivePalette(userId: string, paletteId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ active_palette_id: paletteId })
+        .eq('id', userId);
+
+      if (error) throw error;
+    } catch (error) {
+      handleSupabaseError(error, 'setActivePalette');
+    }
+  }
+
+  // ============================================================
+  // MAPPER
+  // ============================================================
+
+  private static mapDbToPalette(dbRow: any): SavedPalette {
+    return {
+      id: dbRow.id,
+      name: dbRow.name,
+      palette: dbRow.palette as ColorPalette,
+      createdAt: dbRow.created_at,
     };
-
-    return [...palettes, newPalette];
-  }
-
-  // Eliminar una paleta
-  static deletePalette(user: User, paletteId: string): SavedPalette[] {
-    const palettes = this.getUserPalettes(user);
-    return palettes.filter(p => p.id !== paletteId);
-  }
-
-  // Actualizar una paleta existente
-  static updatePalette(user: User, paletteId: string, updates: Partial<SavedPalette>): SavedPalette[] {
-    const palettes = this.getUserPalettes(user);
-    return palettes.map(p =>
-      p.id === paletteId ? { ...p, ...updates } : p
-    );
   }
 }

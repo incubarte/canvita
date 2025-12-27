@@ -1,150 +1,249 @@
 import type { Project, Folder } from '../types/user';
 import { Canvas } from 'fabric';
+import { supabase, handleSupabaseError } from '../lib/supabase';
 
 export class ProjectService {
-  private static PROJECTS_KEY = 'projects';
-  private static FOLDERS_KEY = 'folders';
+  // ============================================================
+  // PROYECTOS
+  // ============================================================
 
-  // Proyectos
-  static getProjects(userId: string): Project[] {
-    const projectsJson = localStorage.getItem(this.PROJECTS_KEY) || '[]';
-    const allProjects = JSON.parse(projectsJson);
-    return allProjects.filter((p: Project) => p.userId === userId);
+  // Obtener proyectos del usuario
+  static async getProjects(userId: string): Promise<Project[]> {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(this.mapDbToProject);
+    } catch (error) {
+      handleSupabaseError(error, 'getProjects');
+    }
   }
 
-  static getProject(projectId: string): Project | null {
-    const projectsJson = localStorage.getItem(this.PROJECTS_KEY) || '[]';
-    const allProjects = JSON.parse(projectsJson);
-    return allProjects.find((p: Project) => p.id === projectId) || null;
+  // Obtener un proyecto específico
+  static async getProject(projectId: string): Promise<Project | null> {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+
+      if (error) throw error;
+
+      return data ? this.mapDbToProject(data) : null;
+    } catch (error) {
+      console.error('Error getting project:', error);
+      return null;
+    }
   }
 
-  static saveProject(
+  // Guardar proyecto (crear o actualizar)
+  static async saveProject(
     userId: string,
     name: string,
     templateId: string,
     canvas: Canvas,
     folderId: string | null = null,
     existingProjectId?: string
-  ): Project {
-    const projectsJson = localStorage.getItem(this.PROJECTS_KEY) || '[]';
-    const allProjects = JSON.parse(projectsJson);
+  ): Promise<Project> {
+    try {
+      const canvasData = JSON.stringify(canvas.toJSON());
+      const thumbnail = canvas.toDataURL({ format: 'png', quality: 0.5, multiplier: 0.2 });
 
-    const canvasData = JSON.stringify(canvas.toJSON());
-    const thumbnail = canvas.toDataURL({ format: 'png', quality: 0.5, multiplier: 0.2 });
+      if (existingProjectId) {
+        // Actualizar proyecto existente
+        const { data, error } = await supabase
+          .from('projects')
+          .update({
+            name,
+            folder_id: folderId,
+            canvas_data: canvasData,
+            thumbnail,
+          })
+          .eq('id', existingProjectId)
+          .select()
+          .single();
 
-    let project: Project;
+        if (error) throw error;
 
-    if (existingProjectId) {
-      // Actualizar proyecto existente
-      const index = allProjects.findIndex((p: Project) => p.id === existingProjectId);
-      if (index !== -1) {
-        project = {
-          ...allProjects[index],
-          name,
-          folderId,
-          canvasData,
-          thumbnail,
-          updatedAt: new Date().toISOString(),
-        };
-        allProjects[index] = project;
+        return this.mapDbToProject(data);
       } else {
-        throw new Error('Project not found');
+        // Crear nuevo proyecto
+        const { data, error } = await supabase
+          .from('projects')
+          .insert({
+            user_id: userId,
+            name,
+            folder_id: folderId,
+            template_id: templateId,
+            canvas_data: canvasData,
+            thumbnail,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        return this.mapDbToProject(data);
       }
-    } else {
-      // Crear nuevo proyecto
-      project = {
-        id: crypto.randomUUID(),
-        userId,
-        name,
-        folderId,
-        templateId,
-        canvasData,
-        thumbnail,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      allProjects.push(project);
-    }
-
-    localStorage.setItem(this.PROJECTS_KEY, JSON.stringify(allProjects));
-    return project;
-  }
-
-  static deleteProject(projectId: string): void {
-    const projectsJson = localStorage.getItem(this.PROJECTS_KEY) || '[]';
-    const allProjects = JSON.parse(projectsJson);
-    const filtered = allProjects.filter((p: Project) => p.id !== projectId);
-    localStorage.setItem(this.PROJECTS_KEY, JSON.stringify(filtered));
-  }
-
-  static duplicateProject(projectId: string): Project | null {
-    const original = this.getProject(projectId);
-    if (!original) return null;
-
-    const duplicate: Project = {
-      ...original,
-      id: crypto.randomUUID(),
-      name: `${original.name} (copia)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const projectsJson = localStorage.getItem(this.PROJECTS_KEY) || '[]';
-    const allProjects = JSON.parse(projectsJson);
-    allProjects.push(duplicate);
-    localStorage.setItem(this.PROJECTS_KEY, JSON.stringify(allProjects));
-
-    return duplicate;
-  }
-
-  // Carpetas
-  static getFolders(userId: string): Folder[] {
-    const foldersJson = localStorage.getItem(this.FOLDERS_KEY) || '[]';
-    const allFolders = JSON.parse(foldersJson);
-    return allFolders.filter((f: Folder) => f.userId === userId);
-  }
-
-  static createFolder(userId: string, name: string, color?: string): Folder {
-    const foldersJson = localStorage.getItem(this.FOLDERS_KEY) || '[]';
-    const allFolders = JSON.parse(foldersJson);
-
-    const folder: Folder = {
-      id: crypto.randomUUID(),
-      userId,
-      name,
-      color,
-      createdAt: new Date().toISOString(),
-    };
-
-    allFolders.push(folder);
-    localStorage.setItem(this.FOLDERS_KEY, JSON.stringify(allFolders));
-    return folder;
-  }
-
-  static updateFolder(folderId: string, updates: Partial<Folder>): void {
-    const foldersJson = localStorage.getItem(this.FOLDERS_KEY) || '[]';
-    const allFolders = JSON.parse(foldersJson);
-    const index = allFolders.findIndex((f: Folder) => f.id === folderId);
-
-    if (index !== -1) {
-      allFolders[index] = { ...allFolders[index], ...updates };
-      localStorage.setItem(this.FOLDERS_KEY, JSON.stringify(allFolders));
+    } catch (error) {
+      handleSupabaseError(error, 'saveProject');
     }
   }
 
-  static deleteFolder(folderId: string): void {
-    // Mover proyectos de esta carpeta a "sin carpeta"
-    const projectsJson = localStorage.getItem(this.PROJECTS_KEY) || '[]';
-    const allProjects = JSON.parse(projectsJson);
-    const updatedProjects = allProjects.map((p: Project) =>
-      p.folderId === folderId ? { ...p, folderId: null } : p
-    );
-    localStorage.setItem(this.PROJECTS_KEY, JSON.stringify(updatedProjects));
+  // Eliminar proyecto
+  static async deleteProject(projectId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
 
-    // Eliminar carpeta
-    const foldersJson = localStorage.getItem(this.FOLDERS_KEY) || '[]';
-    const allFolders = JSON.parse(foldersJson);
-    const filtered = allFolders.filter((f: Folder) => f.id !== folderId);
-    localStorage.setItem(this.FOLDERS_KEY, JSON.stringify(filtered));
+      if (error) throw error;
+    } catch (error) {
+      handleSupabaseError(error, 'deleteProject');
+    }
+  }
+
+  // Duplicar proyecto
+  static async duplicateProject(projectId: string): Promise<Project | null> {
+    try {
+      const original = await this.getProject(projectId);
+      if (!original) return null;
+
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          user_id: original.userId,
+          name: `${original.name} (copia)`,
+          folder_id: original.folderId,
+          template_id: original.templateId,
+          canvas_data: original.canvasData,
+          thumbnail: original.thumbnail,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return this.mapDbToProject(data);
+    } catch (error) {
+      console.error('Error duplicating project:', error);
+      return null;
+    }
+  }
+
+  // ============================================================
+  // CARPETAS
+  // ============================================================
+
+  // Obtener carpetas del usuario
+  static async getFolders(userId: string): Promise<Folder[]> {
+    try {
+      const { data, error } = await supabase
+        .from('folders')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(this.mapDbToFolder);
+    } catch (error) {
+      handleSupabaseError(error, 'getFolders');
+    }
+  }
+
+  // Crear carpeta
+  static async createFolder(userId: string, name: string, color?: string): Promise<Folder> {
+    try {
+      const { data, error } = await supabase
+        .from('folders')
+        .insert({
+          user_id: userId,
+          name,
+          color,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return this.mapDbToFolder(data);
+    } catch (error) {
+      handleSupabaseError(error, 'createFolder');
+    }
+  }
+
+  // Actualizar carpeta
+  static async updateFolder(folderId: string, updates: Partial<Folder>): Promise<void> {
+    try {
+      const dbUpdates: any = {};
+      if (updates.name) dbUpdates.name = updates.name;
+      if (updates.color !== undefined) dbUpdates.color = updates.color;
+
+      const { error } = await supabase
+        .from('folders')
+        .update(dbUpdates)
+        .eq('id', folderId);
+
+      if (error) throw error;
+    } catch (error) {
+      handleSupabaseError(error, 'updateFolder');
+    }
+  }
+
+  // Eliminar carpeta
+  static async deleteFolder(folderId: string): Promise<void> {
+    try {
+      // Los proyectos se actualizarán automáticamente a NULL por la FK con ON DELETE SET NULL
+      // Pero lo hacemos explícito para mayor control
+      await supabase
+        .from('projects')
+        .update({ folder_id: null })
+        .eq('folder_id', folderId);
+
+      const { error } = await supabase
+        .from('folders')
+        .delete()
+        .eq('id', folderId);
+
+      if (error) throw error;
+    } catch (error) {
+      handleSupabaseError(error, 'deleteFolder');
+    }
+  }
+
+  // ============================================================
+  // MAPPERS
+  // ============================================================
+
+  private static mapDbToProject(dbRow: any): Project {
+    return {
+      id: dbRow.id,
+      userId: dbRow.user_id,
+      name: dbRow.name,
+      folderId: dbRow.folder_id,
+      templateId: dbRow.template_id,
+      canvasData: dbRow.canvas_data,
+      thumbnail: dbRow.thumbnail,
+      createdAt: dbRow.created_at,
+      updatedAt: dbRow.updated_at,
+    };
+  }
+
+  private static mapDbToFolder(dbRow: any): Folder {
+    return {
+      id: dbRow.id,
+      userId: dbRow.user_id,
+      name: dbRow.name,
+      color: dbRow.color,
+      createdAt: dbRow.created_at,
+    };
   }
 }

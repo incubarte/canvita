@@ -30,7 +30,7 @@ export const TemplateLibraryAdmin = ({ onCreateNew, onEditTemplate, onLogout }: 
   const { user, updateUser } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<BusinessCategory | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<TemplateStyle | null>(null);
-  const [templates, setTemplates] = useState<CategorizedTemplate[]>(TemplateService.getCustomTemplates());
+  const [templates, setTemplates] = useState<CategorizedTemplate[]>([]);
   const [previewTemplate, setPreviewTemplate] = useState<CategorizedTemplate | null>(null);
   const [showPaletteManager, setShowPaletteManager] = useState(false);
   const [savedPalettes, setSavedPalettes] = useState<SavedPalette[]>([]);
@@ -38,20 +38,34 @@ export const TemplateLibraryAdmin = ({ onCreateNew, onEditTemplate, onLogout }: 
   const [editingPalette, setEditingPalette] = useState<ColorPalette | null>(null);
   const [newPaletteName, setNewPaletteName] = useState('');
 
+  // Cargar templates
   useEffect(() => {
-    if (user) {
-      const palettes = PaletteService.getUserPalettes(user);
-      setSavedPalettes(palettes);
-
-      const active = PaletteService.getActivePalette(user);
-      setActivePalette(active);
+    async function loadTemplates() {
+      const data = await TemplateService.getCustomTemplates();
+      setTemplates(data);
     }
+    loadTemplates();
+  }, []);
+
+  // Cargar paletas
+  useEffect(() => {
+    async function loadPalettes() {
+      if (user) {
+        const palettes = await PaletteService.getUserPalettes(user.id);
+        setSavedPalettes(palettes);
+
+        const active = await PaletteService.getActivePalette(user);
+        setActivePalette(active);
+      }
+    }
+    loadPalettes();
   }, [user]);
 
-  const handleDeleteTemplate = (templateId: string) => {
+  const handleDeleteTemplate = async (templateId: string) => {
     if (confirm('¿Estás seguro de eliminar este template?')) {
-      TemplateService.deactivateTemplate(templateId);
-      setTemplates(TemplateService.getCustomTemplates());
+      await TemplateService.deactivateTemplate(templateId);
+      const updated = await TemplateService.getCustomTemplates();
+      setTemplates(updated);
     }
   };
 
@@ -59,26 +73,29 @@ export const TemplateLibraryAdmin = ({ onCreateNew, onEditTemplate, onLogout }: 
     onEditTemplate(template);
   };
 
-  const handleChangePalette = (paletteId: string) => {
+  const handleChangePalette = async (paletteId: string) => {
     if (!user) return;
 
     const palette = savedPalettes.find(p => p.id === paletteId);
     if (palette) {
       setActivePalette(palette.palette);
+      await PaletteService.setActivePalette(user.id, paletteId);
       updateUser({ activePaletteId: paletteId });
 
       // Force re-render by updating templates array
-      setTemplates([...TemplateService.getCustomTemplates()]);
+      const updated = await TemplateService.getCustomTemplates();
+      setTemplates(updated);
     }
   };
 
   // Removed unused function
 
-  const handleDeletePalette = (paletteId: string) => {
+  const handleDeletePalette = async (paletteId: string) => {
     if (!user) return;
     if (!confirm('¿Eliminar esta paleta?')) return;
 
-    const newPalettes = PaletteService.deletePalette(user, paletteId);
+    await PaletteService.deletePalette(paletteId);
+    const newPalettes = await PaletteService.getUserPalettes(user.id);
     updateUser({ savedPalettes: newPalettes, activePaletteId: newPalettes[0]?.id });
     setSavedPalettes(newPalettes);
     setActivePalette(newPalettes[0]?.palette || null);
@@ -89,39 +106,41 @@ export const TemplateLibraryAdmin = ({ onCreateNew, onEditTemplate, onLogout }: 
     setActivePalette(palette);
   };
 
-  const handleSaveNewPalette = () => {
+  const handleSaveNewPalette = async () => {
     if (!user || !editingPalette || !newPaletteName.trim()) {
       alert('Por favor ingresa un nombre para la paleta');
       return;
     }
 
-    const newPalettes = PaletteService.savePalette(user, newPaletteName, editingPalette);
-    const newPaletteId = newPalettes[newPalettes.length - 1].id;
+    const newPalette = await PaletteService.savePalette(user.id, newPaletteName, editingPalette);
+    const newPalettes = await PaletteService.getUserPalettes(user.id);
 
-    updateUser({ savedPalettes: newPalettes, activePaletteId: newPaletteId });
+    updateUser({ savedPalettes: newPalettes, activePaletteId: newPalette.id });
     setSavedPalettes(newPalettes);
     setActivePalette(editingPalette);
     setNewPaletteName('');
     alert('¡Paleta guardada exitosamente!');
   };
 
-  const handleUpdateExistingPalette = (paletteId: string) => {
+  const handleUpdateExistingPalette = async (paletteId: string) => {
     if (!user || !editingPalette) return;
 
-    const newPalettes = PaletteService.updatePalette(user, paletteId, { palette: editingPalette });
+    await PaletteService.updatePalette(paletteId, { palette: editingPalette });
+    const newPalettes = await PaletteService.getUserPalettes(user.id);
     updateUser({ savedPalettes: newPalettes });
     setSavedPalettes(newPalettes);
     setActivePalette(editingPalette);
     alert('¡Paleta actualizada exitosamente!');
   };
 
-  const handleRenamePalette = (paletteId: string, currentName: string) => {
+  const handleRenamePalette = async (paletteId: string, currentName: string) => {
     if (!user) return;
 
     const newName = prompt('Nuevo nombre para la paleta:', currentName);
     if (!newName || newName === currentName) return;
 
-    const newPalettes = PaletteService.updatePalette(user, paletteId, { name: newName });
+    await PaletteService.updatePalette(paletteId, { name: newName });
+    const newPalettes = await PaletteService.getUserPalettes(user.id);
     updateUser({ savedPalettes: newPalettes });
     setSavedPalettes(newPalettes);
   };

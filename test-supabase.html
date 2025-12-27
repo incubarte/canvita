@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test Supabase Connection</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testQuery()">Test Query to Users Table</button>
+    <button onclick="testAuth()">Test Auth</button>
+    <pre id="output"></pre>
+
+    <script>
+        const SUPABASE_URL = 'https://fgejlbhgrqzqiewmundw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnZWpsYmhncnF6cWlld211bmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3OTQyMjYsImV4cCI6MjA4MjM3MDIyNn0.ZQv-AVbLsebHJ2DBOMAvottO3WfKj-YVoIsxp3ErR2c';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            console.log(msg);
+            output.textContent += msg + '\n';
+        }
+
+        async function testConnection() {
+            output.textContent = '';
+            log('Testing Supabase connection...');
+
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error) {
+                    log('ERROR: ' + error.message);
+                } else {
+                    log('SUCCESS: Connection OK');
+                    log('Session: ' + JSON.stringify(data, null, 2));
+                }
+            } catch (e) {
+                log('EXCEPTION: ' + e.message);
+            }
+        }
+
+        async function testQuery() {
+            output.textContent = '';
+            log('Testing query to users table...');
+
+            try {
+                log('Fetching users...');
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .limit(5);
+
+                log('Query completed');
+
+                if (error) {
+                    log('ERROR: ' + JSON.stringify(error, null, 2));
+                } else {
+                    log('SUCCESS: ' + data.length + ' users found');
+                    log('Data: ' + JSON.stringify(data, null, 2));
+                }
+            } catch (e) {
+                log('EXCEPTION: ' + e.message);
+            }
+        }
+
+        async function testAuth() {
+            output.textContent = '';
+            const email = prompt('Email:');
+            const password = prompt('Password:');
+
+            log('Testing auth with ' + email + '...');
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) {
+                    log('AUTH ERROR: ' + error.message);
+                } else {
+                    log('AUTH SUCCESS');
+                    log('User: ' + JSON.stringify(data.user, null, 2));
+
+                    // Now try to fetch from users table
+                    log('\nFetching user data from users table...');
+                    const { data: userData, error: userError } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    if (userError) {
+                        log('USER DATA ERROR: ' + JSON.stringify(userError, null, 2));
+                    } else {
+                        log('USER DATA SUCCESS: ' + JSON.stringify(userData, null, 2));
+                    }
+                }
+            } catch (e) {
+                log('EXCEPTION: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -13,6 +13,7 @@ import { TemplateInfoPanel, type TemplateInfo } from './components/TemplateInfoP
 import { ProjectSetupPanel } from './components/ProjectSetupPanel';
 import { TemplatePreview } from './components/TemplatePreview';
 import { CustomizationPanel } from './components/CustomizationPanel';
+import { DebugSupabase } from './components/DebugSupabase';
 import { templates } from './data/templates';
 import { ProjectService } from './services/projectService';
 import { TemplateService } from './services/templateService';
@@ -56,6 +57,9 @@ function EditorView() {
   const [savedPalettes, setSavedPalettes] = useState<SavedPalette[]>([]);
   const [activePalette, setActivePalette] = useState<ColorPalette | null>(null);
 
+  // Estado para templates personalizados
+  const [customTemplates, setCustomTemplates] = useState<CategorizedTemplate[]>([]);
+
   // Sincronizar el nombre del template con el título
   const handleTemplateInfoChange = (info: TemplateInfo) => {
     setTemplateInfo(info);
@@ -66,20 +70,32 @@ function EditorView() {
 
   const { saveState, undo, redo, canUndo, canRedo } = useCanvasHistory(canvas);
 
+  // Cargar templates personalizados
+  useEffect(() => {
+    async function loadCustomTemplates() {
+      const templates = await TemplateService.getCustomTemplates();
+      setCustomTemplates(templates);
+    }
+    loadCustomTemplates();
+  }, []);
+
   // Cargar paletas del admin
   useEffect(() => {
-    if (isAdmin && user) {
-      const palettes = PaletteService.getUserPalettes(user);
-      setSavedPalettes(palettes);
+    async function loadPalettes() {
+      if (isAdmin && user) {
+        const palettes = await PaletteService.getUserPalettes(user.id);
+        setSavedPalettes(palettes);
 
-      const active = PaletteService.getActivePalette(user);
-      setActivePalette(active);
+        const active = await PaletteService.getActivePalette(user);
+        setActivePalette(active);
 
-      // Sincronizar con templateInfo.demoTheme
-      if (active) {
-        setTemplateInfo(prev => ({ ...prev, demoTheme: active }));
+        // Sincronizar con templateInfo.demoTheme
+        if (active) {
+          setTemplateInfo(prev => ({ ...prev, demoTheme: active }));
+        }
       }
     }
+    loadPalettes();
   }, [isAdmin, user]);
 
   // Actualizar color de fondo del canvas
@@ -255,7 +271,7 @@ function EditorView() {
     setView('editor');
   };
 
-  const handleSaveProject = () => {
+  const handleSaveProject = async () => {
     if (!canvas || !user) return;
 
     if (isAdmin) {
@@ -278,7 +294,7 @@ function EditorView() {
         return;
       }
 
-      const savedTemplate = TemplateService.saveTemplate(
+      const savedTemplate = await TemplateService.saveTemplate(
         user.id,
         templateInfo.name,
         templateInfo.description,
@@ -298,7 +314,7 @@ function EditorView() {
       const name = prompt('Nombre del proyecto:', projectName);
       if (!name) return;
 
-      const saved = ProjectService.saveProject(
+      const saved = await ProjectService.saveProject(
         user.id,
         name,
         selectedTemplate.id,
@@ -384,7 +400,7 @@ function EditorView() {
 
   // Para clientes: Setup de proyecto con panel integrado
   if (view === 'setupProject') {
-    const allTemplates = [...TemplateService.getCustomTemplates(), ...templates];
+    const allTemplates = [...customTemplates, ...templates];
 
     return (
       <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
@@ -816,8 +832,18 @@ function AppContent() {
 
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="text-purple-300/60">Cargando...</div>
+      <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
+          <div className="text-purple-300/80 text-lg">Cargando...</div>
+          <div className="text-purple-300/40 text-sm mt-2">Verificando sesión</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 px-4 py-2 bg-purple-600/20 text-purple-300 rounded-lg hover:bg-purple-600/30 transition-colors text-sm"
+          >
+            Recargar página
+          </button>
+        </div>
       </div>
     );
   }
@@ -830,8 +856,23 @@ function AppContent() {
 }
 
 function App() {
+  // Modo debug - presiona Shift+D para activar
+  const [showDebug, setShowDebug] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.key === 'D') {
+        setShowDebug(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <AuthProvider>
+      {showDebug && <DebugSupabase />}
       <AppContent />
     </AuthProvider>
   );

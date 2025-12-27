@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ProjectService } from '../services/projectService';
+import { PaletteService } from '../services/paletteService';
 import { ColorPalettePanel } from './ColorPalettePanel';
 import type { Project, Folder, ColorPalette } from '../types/user';
 
@@ -22,33 +23,37 @@ export const ProjectsLibrary = ({ onOpenProject, onNewProject }: ProjectsLibrary
     loadData();
   }, [user]);
 
-  const loadData = () => {
+  const loadData = async () => {
     if (user) {
-      setProjects(ProjectService.getProjects(user.id));
-      setFolders(ProjectService.getFolders(user.id));
+      const [projectsData, foldersData] = await Promise.all([
+        ProjectService.getProjects(user.id),
+        ProjectService.getFolders(user.id)
+      ]);
+      setProjects(projectsData);
+      setFolders(foldersData);
     }
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (user && newFolderName.trim()) {
-      ProjectService.createFolder(user.id, newFolderName.trim());
+      await ProjectService.createFolder(user.id, newFolderName.trim());
       setNewFolderName('');
       setShowNewFolderDialog(false);
-      loadData();
+      await loadData();
     }
   };
 
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
     if (confirm('¿Estás seguro de eliminar este proyecto?')) {
-      ProjectService.deleteProject(projectId);
-      loadData();
+      await ProjectService.deleteProject(projectId);
+      await loadData();
     }
   };
 
-  const handleDeleteFolder = (folderId: string) => {
+  const handleDeleteFolder = async (folderId: string) => {
     if (confirm('¿Eliminar esta carpeta? Los proyectos se moverán a "Sin carpeta"')) {
-      ProjectService.deleteFolder(folderId);
-      loadData();
+      await ProjectService.deleteFolder(folderId);
+      await loadData();
       if (selectedFolder === folderId) {
         setSelectedFolder(null);
       }
@@ -59,9 +64,12 @@ export const ProjectsLibrary = ({ onOpenProject, onNewProject }: ProjectsLibrary
     ? projects.filter(p => p.folderId === selectedFolder)
     : projects.filter(p => p.folderId === null);
 
-  const handleSavePalette = (palette: ColorPalette) => {
-    updateUser({ colorPalette: palette });
-    alert('¡Paleta de colores guardada exitosamente!');
+  const handleSavePalette = async (palette: ColorPalette) => {
+    if (user) {
+      await PaletteService.updateUserPalette(user.id, palette);
+      updateUser({ colorPalette: palette });
+      alert('¡Paleta de colores guardada exitosamente!');
+    }
   };
 
   return (

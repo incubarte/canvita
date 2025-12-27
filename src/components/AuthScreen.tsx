@@ -6,6 +6,7 @@ export const AuthScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login, register } = useAuth();
 
@@ -19,7 +20,7 @@ export const AuthScreen = () => {
         alert('Por favor ingresá tu nombre');
         return;
       }
-      await register(email, password, name);
+      await register(email, password, name, isAdmin ? 'admin' : 'client');
     }
   };
 
@@ -124,6 +125,21 @@ export const AuthScreen = () => {
                 </button>
               </div>
             </div>
+
+            {!isLogin && (
+              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                <input
+                  type="checkbox"
+                  id="isAdmin"
+                  checked={isAdmin}
+                  onChange={(e) => setIsAdmin(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
+                />
+                <label htmlFor="isAdmin" className="text-sm text-purple-300/80 cursor-pointer">
+                  Registrarme como <span className="font-semibold text-amber-400">Administrador</span>
+                </label>
+              </div>
+            )}
 
             <button
               type="submit"
