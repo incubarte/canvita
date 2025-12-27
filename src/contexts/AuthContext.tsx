@@ -180,7 +180,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         console.log('👤 User signed in via event:', session.user.email);
 
         // Marcar que estamos cargando este email
-        lastLoadedEmailRef.current = session.user.email;
+        lastLoadedEmailRef.current = session.user.email || null;
         try {
           // Timeout de 3 segundos para getCurrentUser
           const userPromise = AuthService.getCurrentUser();
